@@ -1,0 +1,7 @@
+[package]
+name = "rdf"
+version = "0.1.0"
+authors = ["Tom Johnson <n0reply@uw.edu>"]
+
+[dependencies]
+snowflake = "~1.2"
