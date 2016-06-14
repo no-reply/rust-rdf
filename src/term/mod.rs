@@ -4,13 +4,25 @@
 //! # Examples
 //!
 //! ```
-//! use rdf::term;
+//! use rdf::term::*;
 //!
+//! let iri     = IRI::new("http://example.com/moomin");
+//! let node    = BNode::new();
+//! let literal = Literal::new("moomin", None, None);
 //! ```
 extern crate snowflake;
 
-//const LANG_STRING_IRI: &'static str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+use std::hash::Hash;
+
+const LANG_STRING_IRI: &'static str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
 const XSD_STRING_IRI:  &'static str = "http://www.w3.org/2001/XMLSchema#string";
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Term<'a> {
+    IRI(IRI<'a>),
+    BNode(BNode),
+    Literal(Literal<'a>),
+}
 
 /// An [IRI](https://www.w3.org/TR/rdf11-concepts/#dfn-iri) as an RDF Term.
 ///
@@ -21,7 +33,7 @@ const XSD_STRING_IRI:  &'static str = "http://www.w3.org/2001/XMLSchema#string";
 ///
 /// let iri = IRI::new("http://example.com/moomin");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IRI<'a> {
     value: &'a str,
 }
@@ -38,9 +50,11 @@ type BNodeId = ProcessUniqueId;
 /// A [Blank Node](https://www.w3.org/TR/rdf11-concepts/#dfn-blank-node) as an 
 /// RDF Term.
 ///
-/// Newly initialized nodes are guarenteed to be unique within the process. See
-/// [Snowflake](https://stebalien.github.io/snowflake/snowflake/struct.ProcessUniqueId.html) for
-/// details about the `BNodeId` implementation.
+/// Newly initialized nodes are guarenteed to be unique within the process. This means two 
+/// separately initialized Blank Nodes will never be equal within a process.
+///
+/// See [Snowflake](https://stebalien.github.io/snowflake/snowflake/struct.ProcessUniqueId.html) for
+/// details about the identifier implementation.
 ///
 /// # Examples
 ///
@@ -56,7 +70,7 @@ type BNodeId = ProcessUniqueId;
 ///
 /// assert!(node != other);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BNode {
     id: BNodeId,
 }
@@ -71,14 +85,28 @@ impl BNode {
 ///
 /// Literals are composed of a `lexical` form, a `datatype` `IRI`, and (optionally) a `lang` tag.
 ///
+/// RDF 1.1 types "simple literals" as `xsd:string`. This is used as a default type when neither a
+/// datatype nor a language tag is given. Literals initialized with a language tag must be of type
+/// `rdf:langString`; this type is forced if a tag is passed but no datatype is given.
+///
 /// # Examples
 ///
 /// ```
-/// use rdf::term::Literal;
+/// use rdf::term::{Literal, IRI};
 /// 
 /// let literal = Literal::new("moomin", None, None);
+/// let date    = Literal::new("2016-05-22", 
+///                            Some(IRI::new("http://www.w3.org/2001/XMLSchema#date")), 
+///                            None);
+///
+/// let lang = Literal::new_lang_string("Today", "@en");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// # Panics
+///
+/// When a language tag is passed with a non-`rdf:langString` datatype.
+///
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Literal<'a> {
     lexical:  String,
     datatype: IRI<'a>,
@@ -89,11 +117,34 @@ impl<'a> Literal<'a> {
     pub fn new(lexical: &str, datatype: Option<IRI<'a>>, lang: Option<&'a str>) -> Self {
         match datatype {
             Some(iri) => {
-                Literal { lexical: lexical.to_string(), datatype: iri, lang: lang } 
+                if iri == IRI::new(LANG_STRING_IRI) {
+                    Literal { lexical: lexical.to_string(), datatype: iri, lang: lang }
+                } else {
+                    match lang {
+                        None => { Literal { lexical: lexical.to_string(), datatype: iri, lang: lang } },
+                        _    => { panic!("Initializing a Literal with of non-langString datatype and language tag") }
+                    }
+                }
             },
             None => {
-                Literal { lexical: lexical.to_string(), datatype: IRI::new(XSD_STRING_IRI), lang: None }
+                match lang {
+                    Some(lang) => { Literal::new_lang_string(lexical, lang) },
+                    None       => { Literal::new_string(lexical) }
+                    
+                }
             }
         } 
+    }
+
+    pub fn new_string(lexical: &str) -> Self {
+        Literal { lexical: lexical.to_string(), 
+                  datatype: IRI::new(XSD_STRING_IRI),
+                  lang: None }
+    }
+
+    pub fn new_lang_string(lexical: &str, lang: &'a str) -> Self {
+        Literal { lexical: lexical.to_string(), 
+                  datatype: IRI::new(LANG_STRING_IRI), 
+                  lang: Some(lang) }
     }
 }
