@@ -12,7 +12,7 @@
 
 use std::str;
 use term::{BNode, IRI, Literal, Term};
-use nom::{line_ending, is_space, is_alphanumeric};
+use nom::{is_space, is_alphanumeric, line_ending};
 
 fn to_iri(iri_bytes: &[u8]) -> Term {
     match str::from_utf8(iri_bytes) {
@@ -70,8 +70,9 @@ mod tests {
     use nom::IResult::Done;
 
     #[test]
-    fn bnodes() {
-        assert_eq!(bnode_label(&b"_:abc"[..]), Done(&b""[..], &b"abc"[..]))
+    fn bnode_labels() {
+        assert_eq!(bnode_label(&b"_:abc"[..]), Done(&b""[..], &b"abc"[..]));
+        assert!(bnode_label(&b"abc"[..]).is_err())
     }
 
     #[test]
@@ -80,22 +81,20 @@ mod tests {
     }
 
     #[test]
-    fn triples() {
-        assert_eq!(ntriple(&b"<ab> <cd> <ef> ."[..]), Done(&b""[..], "found!"))
-    }
-
-    #[test]
-    fn tabs_in_triples() {
-        assert_eq!(ntriple(&b"<ab>\t<cd>\t  <ef> ."[..]), Done(&b""[..], "found!"))
-    }
-
-    #[test]
-    fn literals() {
+    fn literal_quotes() {
         assert_eq!(literal_quote(&b"\"moomin\""[..]), Done(&b""[..], &b"moomin"[..]))
     }
 
     #[test]
     fn ntriples() {
-        assert_eq!(ntriple(&b"_:node1 <iri> \"moomin\" ."[..]), Done(&b""[..], "found!"))
+        assert_eq!(ntriple(&b"<ab> <cd> <ef> ."[..]),           Done(&b""[..], "found!"));
+        assert_eq!(ntriple(&b"<ab>\t<cd>\t  <ef> ."[..]),       Done(&b""[..], "found!"));
+        assert_eq!(ntriple(&b"_:node1 <iri> \"moomin\" ."[..]), Done(&b""[..], "found!"));
+
+        // Errors
+        assert!(ntriple(&b"_:node1 :node2 \"moomin\" ."[..]).is_err());
+        assert!(ntriple(&b"\"moomin\" <iri> <iri> ."[..]).is_err());
+        assert!(ntriple(&b"\"moomin\" <iri> ."[..]).is_err());
+        assert!(ntriple(&b"<iri> <iri> <iri> <iri> ."[..]).is_err());
     }
 }
