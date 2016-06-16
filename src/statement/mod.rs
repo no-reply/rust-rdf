@@ -30,7 +30,7 @@ pub struct Statement<'a> {
 }
 
 impl<'a> Statement<'a> {
-    pub fn new(s: Term<'a>, p: Term<'a>, o: Term<'a>) {
-        Statement { subject: s, predicate: p, object: o };
+    pub fn new(s: Term<'a>, p: Term<'a>, o: Term<'a>) -> Self {
+        Statement { subject: s, predicate: p, object: o }
     }
 }

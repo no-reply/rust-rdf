@@ -12,8 +12,6 @@
 //! ```
 extern crate snowflake;
 
-use std::hash::Hash;
-
 const LANG_STRING_IRI: &'static str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
 const XSD_STRING_IRI:  &'static str = "http://www.w3.org/2001/XMLSchema#string";
 
